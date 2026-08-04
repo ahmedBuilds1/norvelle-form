@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Norvelle — Work Time Log</title>
+<style>
+  :root{
+    --bg: #0F1420;
+    --panel: #171D2E;
+    --panel-border: #262E44;
+    --field-bg: #0F1420;
+    --text: #E7EAF2;
+    --text-dim: #8891A7;
+    --accent: #4F7CFF;
+    --accent-dim: rgba(79,124,255,0.14);
+    --ok: #35C293;
+    --err: #F0555A;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    background: var(--bg);
+    background-image: radial-gradient(circle at 15% 0%, rgba(79,124,255,0.08), transparent 45%);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Arial, sans-serif;
+    display:flex;
+    justify-content:center;
+    padding:40px 16px 60px;
+    color: var(--text);
+  }
+  .panel{
+    width:100%;
+    max-width:640px;
+    background: var(--panel);
+    border:1px solid var(--panel-border);
+    border-radius:14px;
+    overflow:hidden;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+  }
+  .header{
+    padding:22px 26px 18px;
+    border-bottom:1px solid var(--panel-border);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .header .brand{
+    font-size:11px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color: var(--accent);
+    font-weight:600;
+    margin-bottom:6px;
+  }
+  .header h1{
+    font-size:19px;
+    margin:0;
+    font-weight:650;
+    letter-spacing:-0.01em;
+  }
+  .status-dot{
+    width:8px; height:8px;
+    border-radius:50%;
+    background: var(--ok);
+    box-shadow: 0 0 0 4px rgba(53,194,147,0.15);
+  }
+  form{ padding:22px 26px 8px; }
+  .field{ margin-bottom:16px; }
+  .field label{
+    display:block;
+    font-size:12px;
+    font-weight:600;
+    color: var(--text-dim);
+    margin-bottom:7px;
+    letter-spacing:.01em;
+  }
+  input, select{
+    width:100%;
+    padding:11px 12px;
+    background: var(--field-bg);
+    border: 1px solid var(--panel-border);
+    border-radius:8px;
+    color: var(--text);
+    font-family:inherit;
+    font-size:14px;
+  }
+  input:focus, select:focus{
+    outline:none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-dim);
+  }
+  select{
+    appearance:none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3e%3cpath fill='%238891A7' d='M6 8 0 0h12z'/%3e%3c/svg%3e");
+    background-repeat:no-repeat;
+    background-position: right 14px center;
+    background-size:10px;
+    padding-right:34px;
+  }
+  .row2{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:12px;
+  }
+  .row3{
+    display:grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap:12px;
+  }
+  button{
+    width:100%;
+    margin-top:6px;
+    padding:13px;
+    border:none;
+    border-radius:8px;
+    background: var(--accent);
+    color: #fff;
+    font-family:inherit;
+    font-weight:600;
+    font-size:14px;
+    cursor:pointer;
+    transition: background .15s ease, transform .08s ease;
+  }
+  button:hover{ background:#3E68E8; }
+  button:active{ transform: translateY(1px); }
+  button:disabled{
+    background:#3A4257;
+    cursor:not-allowed;
+  }
+  #status{
+    margin-top:12px;
+    font-size:13px;
+    min-height:18px;
+    text-align:center;
+  }
+  .ok{ color: var(--ok); font-weight:600; }
+  .err{ color: var(--err); font-weight:600; }
+  .date-trigger{
+    width:100%;
+    padding:11px 12px;
+    background: var(--field-bg);
+    border: 1px solid var(--panel-border);
+    border-radius:8px;
+    color: var(--text);
+    font-family:inherit;
+    font-size:14px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    cursor:pointer;
+    text-align:left;
+    margin:0;
+  }
+  .date-trigger svg{ color: var(--text-dim); flex-shrink:0; }
+  .date-trigger:hover{ border-color: var(--accent); }
+  .calendar-popup{
+    display:none;
+    position:absolute;
+    top:calc(100% + 6px);
+    left:0;
+    right:0;
+    z-index:20;
+    background: var(--panel);
+    border:1px solid var(--panel-border);
+    border-radius:10px;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.45);
+    padding:14px;
+  }
+  .calendar-popup.open{ display:block; }
+  .cal-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:10px;
+  }
+  .cal-header span{
+    font-size:13px;
+    font-weight:600;
+    letter-spacing:.01em;
+  }
+  .cal-nav{
+    width:28px; height:28px;
+    margin:0;
+    padding:0;
+    border-radius:6px;
+    background: transparent;
+    border:1px solid var(--panel-border);
+    color: var(--text);
+    font-size:16px;
+    line-height:1;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .cal-nav:hover{ background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+  .cal-weekdays{
+    display:grid;
+    grid-template-columns: repeat(7, 1fr);
+    text-align:center;
+    font-size:10px;
+    color: var(--text-dim);
+    font-weight:600;
+    letter-spacing:.04em;
+    margin-bottom:4px;
+  }
+  .cal-grid{
+    display:grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap:2px;
+  }
+  .cal-day{
+    aspect-ratio:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:13px;
+    border-radius:6px;
+    cursor:pointer;
+    color: var(--text);
+    background:transparent;
+    border:none;
+    margin:0;
+    padding:0;
+    font-weight:400;
+  }
+  .cal-day:hover{ background: var(--accent-dim); color: var(--accent); }
+  .cal-day.muted{ color: var(--text-dim); opacity:.35; }
+  .cal-day.today{ box-shadow: inset 0 0 0 1px var(--accent); }
+  .cal-day.selected{ background: var(--accent); color:#fff; font-weight:600; }
+  .cal-today{
+    width:100%;
+    margin-top:10px;
+    padding:8px;
+    background: transparent;
+    border:1px dashed var(--panel-border);
+    color: var(--text-dim);
+    font-size:12px;
+    font-weight:500;
+  }
+  .cal-today:hover{ background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
+  .project-block{
+    border:1px solid var(--panel-border);
+    border-radius:10px;
+    padding:14px 14px 2px;
+    margin-bottom:14px;
+    position:relative;
+    background: rgba(255,255,255,0.015);
+  }
+  .project-block .block-label{
+    font-size:11px;
+    font-weight:700;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color: var(--accent);
+    margin-bottom:12px;
+  }
+  .remove-block{
+    position:absolute;
+    top:10px;
+    right:12px;
+    background:none;
+    border:none;
+    width:auto;
+    margin:0;
+    padding:0 4px;
+    color: var(--text-dim);
+    font-size:16px;
+    line-height:1;
+    cursor:pointer;
+  }
+  .remove-block:hover{ color: var(--err); background:none; }
+  .ghost-btn{
+    background: transparent;
+    border: 1px dashed var(--panel-border);
+    color: var(--text-dim);
+    font-weight:500;
+    margin-bottom:16px;
+  }
+  .ghost-btn:hover{
+    background: var(--accent-dim);
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+  .ghost-btn:disabled{
+    opacity:.4;
+    border-style:dashed;
+  }
+  .footer{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:14px 26px 20px;
+    font-size:12px;
+    color: var(--text-dim);
+  }
+  .footer b{ color: var(--text); }
+  .gate{
+    position:fixed;
+    inset:0;
+    background: var(--bg);
+    background-image: radial-gradient(circle at 15% 0%, rgba(79,124,255,0.08), transparent 45%);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:100;
+    padding:16px;
+  }
+  .gate-box{
+    width:100%;
+    max-width:320px;
+    background: var(--panel);
+    border:1px solid var(--panel-border);
+    border-radius:14px;
+    padding:28px 26px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+    text-align:center;
+  }
+  .gate-box .brand{
+    font-size:11px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color: var(--accent);
+    font-weight:600;
+    margin-bottom:6px;
+  }
+  .gate-box h2{
+    font-size:17px;
+    margin:0 0 18px;
+    font-weight:650;
+  }
+  .gate-box input{
+    text-align:center;
+    letter-spacing:.1em;
+  }
+  .gate-box button{ margin-top:14px; }
+  #gateError{
+    color: var(--err);
+    font-size:12px;
+    margin-top:10px;
+    min-height:16px;
+    font-weight:600;
+  }
+  body.locked > .panel{ display:none; }
+</style>
+</head>
+<body class="locked">
+
+<div class="gate" id="gate">
+  <div class="gate-box">
+    <div class="brand">Norvelle</div>
+    <h2>Work Time Log — Access</h2>
+    <input type="password" id="gatePassword" placeholder="Enter access code" onkeydown="if(event.key==='Enter') checkGate()">
+    <button onclick="checkGate()">Unlock</button>
+    <div id="gateError"></div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="header">
+    <div>
+      <div class="brand">Norvelle</div>
+      <h1>Work Time Log</h1>
+    </div>
+    <div class="status-dot" title="Connected"></div>
+  </div>
+
+  <form onsubmit="return false;">
+    <div class="row2">
+      <div class="field" style="position:relative;">
+        <label>Date</label>
+        <button type="button" id="dateTrigger" class="date-trigger" onclick="toggleCalendar()">
+          <span id="dateDisplay">Select date</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </button>
+        <input type="hidden" id="date">
+
+        <div id="calendarPopup" class="calendar-popup">
+          <div class="cal-header">
+            <button type="button" class="cal-nav" onclick="shiftMonth(-1)">&#8249;</button>
+            <span id="calMonthLabel"></span>
+            <button type="button" class="cal-nav" onclick="shiftMonth(1)">&#8250;</button>
+          </div>
+          <div class="cal-weekdays">
+            <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+          </div>
+          <div id="calGrid" class="cal-grid"></div>
+          <button type="button" class="cal-today" onclick="selectToday()">Today</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Employee</label>
+        <select id="employeeName">
+          <option value="">Select employee</option>
+          <option value="Taimour">Taimour</option>
+          <option value="Jayaprakash Prasad">Jayaprakash Prasad</option>
+          <option value="Ramnivas Prasad">Ramnivas Prasad</option>
+          <option value="Jayan Krishnakutti">Jayan Krishnakutti</option>
+          <option value="Selim Fazal Karim">Selim Fazal Karim</option>
+          <option value="Mohammad Jawdat">Mohammad Jawdat</option>
+          <option value="Omar Moner Altroude">Omar Moner Altroude</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="projectsContainer"></div>
+
+    <button type="button" id="addProjectBtn" class="ghost-btn" onclick="addProjectBlock()">+ Add project for this employee</button>
+
+    <div class="row2" style="align-items:end;">
+      <div class="field">
+        <label>Remarks</label>
+        <input type="text" id="remarks" value="FULLDAY">
+      </div>
+      <div class="field">
+        <button id="saveBtn" onclick="submitForm()">Save Entry</button>
+      </div>
+    </div>
+    <div id="status"></div>
+  </form>
+
+  <div class="footer">
+    <span>Auto-synced to sheet</span>
+    <span>Entries logged: <b id="counterNum">0</b></span>
+  </div>
+</div>
+
+<script>
+  // Simple access code — change this to whatever you like
+  const ACCESS_CODE = "sah22331144";
+
+  function checkGate(){
+    const input = document.getElementById('gatePassword');
+    const error = document.getElementById('gateError');
+    if (input.value === ACCESS_CODE) {
+      sessionStorage.setItem('norvelleFormUnlocked', 'yes');
+      document.getElementById('gate').style.display = 'none';
+      document.body.classList.remove('locked');
+    } else {
+      error.textContent = "Incorrect code";
+      input.value = '';
+      input.focus();
+    }
+  }
+
+  if (sessionStorage.getItem('norvelleFormUnlocked') === 'yes') {
+    document.getElementById('gate').style.display = 'none';
+    document.body.classList.remove('locked');
+  }
+
+  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  let calViewDate = new Date();
+  let selectedDate = new Date();
+
+  function pad(n){ return n.toString().padStart(2, '0'); }
+
+  function formatISO(d){
+    return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
+  }
+
+  function formatDisplay(d){
+    return monthNames[d.getMonth()].slice(0,3) + ' ' + d.getDate() + ', ' + d.getFullYear();
+  }
+
+  function setSelectedDate(d){
+    selectedDate = d;
+    document.getElementById('date').value = formatISO(d);
+    document.getElementById('dateDisplay').textContent = formatDisplay(d);
+  }
+
+  function toggleCalendar(){
+    const popup = document.getElementById('calendarPopup');
+    const isOpen = popup.classList.contains('open');
+    if (isOpen) {
+      popup.classList.remove('open');
+    } else {
+      calViewDate = new Date(selectedDate);
+      renderCalendar();
+      popup.classList.add('open');
+    }
+  }
+
+  function shiftMonth(delta){
+    calViewDate.setMonth(calViewDate.getMonth() + delta);
+    renderCalendar();
+  }
+
+  function selectToday(){
+    setSelectedDate(new Date());
+    document.getElementById('calendarPopup').classList.remove('open');
+  }
+
+  function isSameDay(a, b){
+    return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+  }
+
+  function renderCalendar(){
+    document.getElementById('calMonthLabel').textContent =
+      monthNames[calViewDate.getMonth()] + ' ' + calViewDate.getFullYear();
+
+    const grid = document.getElementById('calGrid');
+    grid.innerHTML = '';
+
+    const year = calViewDate.getFullYear();
+    const month = calViewDate.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const daysInPrevMonth = new Date(year, month, 0).getDate();
+    const today = new Date();
+
+    const cells = [];
+    for (let i = firstDay - 1; i >= 0; i--){
+      cells.push({ day: daysInPrevMonth - i, muted: true, date: new Date(year, month - 1, daysInPrevMonth - i) });
+    }
+    for (let d = 1; d <= daysInMonth; d++){
+      cells.push({ day: d, muted: false, date: new Date(year, month, d) });
+    }
+    let nextDay = 1;
+    while (cells.length % 7 !== 0){
+      cells.push({ day: nextDay, muted: true, date: new Date(year, month + 1, nextDay) });
+      nextDay++;
+    }
+
+    cells.forEach(cell => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'cal-day';
+      if (cell.muted) btn.classList.add('muted');
+      if (isSameDay(cell.date, today)) btn.classList.add('today');
+      if (isSameDay(cell.date, selectedDate)) btn.classList.add('selected');
+      btn.textContent = cell.day;
+      btn.onclick = () => {
+        setSelectedDate(cell.date);
+        document.getElementById('calendarPopup').classList.remove('open');
+      };
+      grid.appendChild(btn);
+    });
+  }
+
+  document.addEventListener('click', (e) => {
+    const popup = document.getElementById('calendarPopup');
+    const trigger = document.getElementById('dateTrigger');
+    if (!popup.contains(e.target) && !trigger.contains(e.target)) {
+      popup.classList.remove('open');
+    }
+  });
+
+  setSelectedDate(new Date());
+
+  // Paste your POST webhook URL here
+  const WEBHOOK_URL = "https://norvelle.app.n8n.cloud/webhook/norvelle-form-submit";
+
+  const MAX_PROJECTS = 3;
+  let submittedCount = 0;
+  let blockCount = 0;
+
+  function addProjectBlock(values) {
+    if (blockCount >= MAX_PROJECTS) return;
+    blockCount++;
+
+    const container = document.getElementById('projectsContainer');
+    const block = document.createElement('div');
+    block.className = 'project-block';
+    block.dataset.index = blockCount;
+
+    block.innerHTML = `
+      <div class="block-label">Project ${blockCount}</div>
+      ${blockCount > 1 ? `<button type="button" class="remove-block" onclick="removeProjectBlock(this)">&#10005;</button>` : ``}
+      <div class="row3">
+        <div class="field">
+          <label>Project / Unit</label>
+          <input type="text" class="project-input" placeholder="e.g. 244, A060">
+        </div>
+        <div class="field">
+          <label>Work Time</label>
+          <select class="worktime-input">
+            <option value="MORNING">MORNING</option>
+            <option value="EVENING">EVENING</option>
+            <option value="FULLDAY">FULLDAY</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Hours</label>
+          <input type="number" class="hours-input" value="8">
+        </div>
+      </div>
+    `;
+
+    container.appendChild(block);
+
+    if (values) {
+      block.querySelector('.project-input').value = values.project || '';
+      block.querySelector('.worktime-input').value = values.workTime || 'MORNING';
+      block.querySelector('.hours-input').value = values.hours || 8;
+    }
+
+    updateAddButtonState();
+  }
+
+  function removeProjectBlock(btn) {
+    btn.closest('.project-block').remove();
+    blockCount--;
+    renumberBlocks();
+    updateAddButtonState();
+  }
+
+  function renumberBlocks() {
+    const blocks = document.querySelectorAll('.project-block');
+    blocks.forEach((b, i) => {
+      b.dataset.index = i + 1;
+      b.querySelector('.block-label').textContent = 'Project ' + (i + 1);
+    });
+  }
+
+  function updateAddButtonState() {
+    const addBtn = document.getElementById('addProjectBtn');
+    addBtn.disabled = blockCount >= MAX_PROJECTS;
+    addBtn.textContent = blockCount >= MAX_PROJECTS
+      ? 'Maximum 3 projects per entry'
+      : '+ Add project for this employee';
+  }
+
+  // Start with one project block
+  addProjectBlock();
+
+  async function submitForm() {
+    const btn = document.getElementById('saveBtn');
+    const status = document.getElementById('status');
+    const employeeName = document.getElementById('employeeName').value;
+
+    if (!employeeName) {
+      status.textContent = "Please select an employee";
+      status.className = "err";
+      return;
+    }
+
+    const blocks = document.querySelectorAll('.project-block');
+    const projects = Array.from(blocks).map(b => ({
+      project: b.querySelector('.project-input').value,
+      workTime: b.querySelector('.worktime-input').value,
+      hours: b.querySelector('.hours-input').value
+    }));
+
+    const payload = {
+      date: document.getElementById('date').value,
+      employeeName: employeeName,
+      projects: projects,
+      project1: projects[0]?.project || "",
+      workTime1: projects[0]?.workTime || "",
+      hours1: projects[0]?.hours || "",
+      project2: projects[1]?.project || "",
+      workTime2: projects[1]?.workTime || "",
+      hours2: projects[1]?.hours || "",
+      project3: projects[2]?.project || "",
+      workTime3: projects[2]?.workTime || "",
+      hours3: projects[2]?.hours || "",
+      remarks: document.getElementById('remarks').value
+    };
+
+    btn.disabled = true;
+    status.textContent = "Saving...";
+    status.className = "";
+
+    try {
+      const res = await fetch(WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        submittedCount++;
+        document.getElementById('counterNum').textContent = submittedCount;
+        status.textContent = "Saved for " + employeeName;
+        status.className = "ok";
+
+        document.getElementById('employeeName').value = "";
+        document.getElementById('employeeName').focus();
+      } else {
+        status.textContent = "Something went wrong, try again";
+        status.className = "err";
+      }
+    } catch (err) {
+      status.textContent = "Could not reach the server";
+      status.className = "err";
+    }
+
+    btn.disabled = false;
+  }
+</script>
+
+</body>
+</html>
