@@ -504,24 +504,14 @@
 </div>
 
 <script>
-  // Simple access code — change this to whatever you like
-  const ACCESS_CODE = "sah22331144";
-
   function checkGate(){
     const input = document.getElementById('gatePassword');
-    const error = document.getElementById('gateError');
-    if (input.value === ACCESS_CODE) {
-      sessionStorage.setItem('norvelleFormUnlocked', 'yes');
-      document.getElementById('gate').style.display = 'none';
-      document.body.classList.remove('locked');
-    } else {
-      error.textContent = "Incorrect code";
-      input.value = '';
-      input.focus();
-    }
+    sessionStorage.setItem('norvelleAccessCode', input.value);
+    document.getElementById('gate').style.display = 'none';
+    document.body.classList.remove('locked');
   }
 
-  if (sessionStorage.getItem('norvelleFormUnlocked') === 'yes') {
+  if (sessionStorage.getItem('norvelleAccessCode')) {
     document.getElementById('gate').style.display = 'none';
     document.body.classList.remove('locked');
   }
@@ -815,7 +805,7 @@
     }));
 
     const payload = {
-      accessCode: ACCESS_CODE,
+      accessCode: sessionStorage.getItem('norvelleAccessCode') || '',
       date: document.getElementById('date').value,
       employeeName: employeeName,
       projects: projects,
@@ -851,8 +841,10 @@
         document.getElementById('employeeName').value = "";
         document.getElementById('employeeName').focus();
       } else {
-        status.textContent = "Something went wrong, try again";
+        status.textContent = "Wrong access code or error, try again";
         status.className = "err";
+        sessionStorage.removeItem('norvelleAccessCode');
+        setTimeout(() => location.reload(), 1500);
       }
     } catch (err) {
       status.textContent = "Could not reach the server";
