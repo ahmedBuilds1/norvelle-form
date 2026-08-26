@@ -504,11 +504,33 @@
 </div>
 
 <script>
-  function checkGate(){
+  async function checkGate(){
     const input = document.getElementById('gatePassword');
-    sessionStorage.setItem('norvelleAccessCode', input.value);
-    document.getElementById('gate').style.display = 'none';
-    document.body.classList.remove('locked');
+    const error = document.getElementById('gateError');
+    const code = input.value;
+
+    error.textContent = "Checking...";
+
+    try {
+      const res = await fetch('https://norvelle.app.n8n.cloud/webhook/verify-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accessCode: code })
+      });
+      const data = await res.json();
+
+      if (data.valid) {
+        sessionStorage.setItem('norvelleAccessCode', code);
+        document.getElementById('gate').style.display = 'none';
+        document.body.classList.remove('locked');
+      } else {
+        error.textContent = "Incorrect code";
+        input.value = '';
+        input.focus();
+      }
+    } catch (err) {
+      error.textContent = "Could not verify code, try again";
+    }
   }
 
   if (sessionStorage.getItem('norvelleAccessCode')) {
