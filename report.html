@@ -149,6 +149,7 @@
     font-size:14px;
     cursor:pointer;
   }
+    }
   #gateError{
     color: var(--err);
     font-size:12px;
@@ -171,22 +172,16 @@
 </div>
 
 <div class="filters-bar">
-  <div class="filter-field">
+  <div class="filter-field" style="position:relative;">
     <label>Employee</label>
-    <select id="employeeFilter">
-      <option value="">All employees</option>
-      <option value="Taimour">Taimour</option>
-      <option value="Jayaprakash Prasad">Jayaprakash Prasad</option>
-      <option value="Ramnivas Prasad">Ramnivas Prasad</option>
-      <option value="Jayan Krishnakutti">Jayan Krishnakutti</option>
-      <option value="Selim Fazal Karim">Selim Fazal Karim</option>
-      <option value="Mohammad Jawdat">Mohammad Jawdat</option>
-      <option value="Omar Moner Altroude">Omar Moner Altroude</option>
-    </select>
+    <div id="employeeChips" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px;"></div>
+    <input type="text" id="employeeFilter" autocomplete="off" placeholder="All employees" readonly onclick="toggleEmployeeSuggestions()">
+    <div id="employeeSuggestions" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:60; background:var(--panel); border:1px solid var(--panel-border); border-radius:8px; max-height:200px; overflow-y:auto; margin-top:4px; box-shadow:0 16px 40px rgba(0,0,0,0.45);"></div>
   </div>
 
   <div class="filter-field" style="position:relative;">
     <label>Project</label>
+    <div id="projectChips" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px;"></div>
     <input type="text" id="projectFilter" autocomplete="off" placeholder="All projects">
     <div id="projectSuggestions" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:60; background:var(--panel); border:1px solid var(--panel-border); border-radius:8px; max-height:200px; overflow-y:auto; margin-top:4px; box-shadow:0 16px 40px rgba(0,0,0,0.45);"></div>
   </div>
@@ -283,10 +278,70 @@
   document.getElementById('fromMonth').value = new Date().getMonth() + 1;
   document.getElementById('toMonth').value = new Date().getMonth() + 1;
 
-  // Project searchable dropdown (custom suggestions box)
-  const projectInput = document.getElementById('projectFilter');
-  const projectSuggestions = document.getElementById('projectSuggestions');
+  // Generic multi-select (chips) builder — used for both Employee and Project
+  const employeeNamesAll = ["Taimour","Jayaprakash Prasad","Ramnivas Prasad","Jayan Krishnakutti","Selim Fazal Karim","Mohammad Jawdat","Omar Moner Altroude"];
   let projectNames = [];
+
+  const selected = { employee: [], project: [] };
+
+  function makeMultiSelect(key, inputId, chipsId, suggestionsId, getAllNames) {
+    const input = document.getElementById(inputId);
+    const chipsBox = document.getElementById(chipsId);
+    const suggestionsBox = document.getElementById(suggestionsId);
+
+    function renderChips() {
+      chipsBox.innerHTML = selected[key].map(name => `
+        <span style="display:inline-flex; align-items:center; gap:5px; background:var(--accent-dim); color:var(--accent); border-radius:6px; padding:4px 8px; font-size:12px; font-weight:600;">
+          ${name}
+          <span style="cursor:pointer;" onmousedown="removeSelected('${key}','${name.replace(/'/g,"\\'")}')">&#10005;</span>
+        </span>
+      `).join('');
+    }
+
+    function renderSuggestions() {
+            const q = input.value.trim().toLowerCase();
+      const all = getAllNames();
+      const list = all.filter(n => !selected[key].includes(n) && (!q || n.toLowerCase().includes(q)));
+      if (!list.length) { suggestionsBox.style.display = 'none'; return; }
+      suggestionsBox.innerHTML = list.map(name =>
+        `<div class="suggestion-item" onmousedown="addSelected('${key}','${name.replace(/'/g,"\\'")}')">${name}</div>`
+      ).join('');
+      suggestionsBox.style.display = 'block';
+    }
+
+    input.addEventListener('input', () => { renderSuggestions(); });
+    input.addEventListener('focus', () => { renderSuggestions(); });
+    input.addEventListener('click', () => { renderSuggestions(); });
+    document.addEventListener('click', (e) => {
+      if (!input.contains(e.target) && !suggestionsBox.contains(e.target)) {
+        suggestionsBox.style.display = 'none';
+      }
+    });
+
+    // expose renderers so add/remove can refresh this instance
+    return { renderChips, renderSuggestions, input };
+  }
+
+  const employeeMS = makeMultiSelect('employee', 'employeeFilter', 'employeeChips', 'employeeSuggestions', () => employeeNamesAll);
+  const projectMS = makeMultiSelect('project', 'projectFilter', 'projectChips', 'projectSuggestions', () => projectNames);
+
+  window.addSelected = function(key, name) {
+    selected[key].push(name);
+    (key === 'employee' ? employeeMS : projectMS).renderChips();
+    document.getElementById(key === 'employee' ? 'employeeFilter' : 'projectFilter').value = '';
+    document.getElementById(key === 'employee' ? 'employeeSuggestions' : 'projectSuggestions').style.display = 'none';
+    fetchReport();
+  };
+
+  window.removeSelected = function(key, name) {
+    selected[key] = selected[key].filter(n => n !== name);
+    (key === 'employee' ? employeeMS : projectMS).renderChips();
+    fetchReport();
+  };
+
+  window.toggleEmployeeSuggestions = function() {
+    employeeMS.renderSuggestions();
+  };
 
   async function loadProjects() {
     try {
@@ -297,39 +352,6 @@
   }
   loadProjects();
 
-  function renderProjectSuggestions(list) {
-    if (!list.length) { projectSuggestions.style.display = 'none'; return; }
-    projectSuggestions.innerHTML = list.map(name =>
-      `<div class="suggestion-item" onmousedown="selectProject('${name.replace(/'/g, "\\'")}')">${name}</div>`
-    ).join('');
-    projectSuggestions.style.display = 'block';
-  }
-
-  projectInput.addEventListener('input', () => {
-    const q = projectInput.value.trim().toLowerCase();
-    const list = q ? projectNames.filter(n => n.toLowerCase().includes(q)) : projectNames;
-    renderProjectSuggestions(list);
-    scheduleReportFetch();
-  });
-
-  projectInput.addEventListener('focus', () => {
-    const q = projectInput.value.trim().toLowerCase();
-    const list = q ? projectNames.filter(n => n.toLowerCase().includes(q)) : projectNames;
-    renderProjectSuggestions(list);
-  });
-
-  document.addEventListener('click', (e) => {
-    if (!projectInput.contains(e.target) && !projectSuggestions.contains(e.target)) {
-      projectSuggestions.style.display = 'none';
-    }
-  });
-
-  window.selectProject = function(name) {
-    projectInput.value = name;
-    projectSuggestions.style.display = 'none';
-    fetchReport();
-  };
-
   // Fetch + render report
   let debounceTimer;
   function scheduleReportFetch() {
@@ -337,7 +359,7 @@
     debounceTimer = setTimeout(fetchReport, 300);
   }
 
-  ['employeeFilter','fromMonth','fromYear','toMonth','toYear'].forEach(id => {
+  ['fromMonth','fromYear','toMonth','toYear'].forEach(id => {
     document.getElementById(id).addEventListener('change', fetchReport);
   });
 
@@ -346,8 +368,8 @@
     content.innerHTML = '<div class="loading">Loading...</div>';
 
     const params = new URLSearchParams({
-      employee: document.getElementById('employeeFilter').value,
-      project: projectInput.value,
+      employee: selected.employee.join(','),
+      project: selected.project.join(','),
       fromMonth: document.getElementById('fromMonth').value,
       fromYear: document.getElementById('fromYear').value,
       toMonth: document.getElementById('toMonth').value,
