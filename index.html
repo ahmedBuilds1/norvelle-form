@@ -644,15 +644,17 @@
   const PROJECTS_WEBHOOK_URL = "https://norvelle.app.n8n.cloud/webhook/get-cached-projects";
   let projectNames = [];
 
-  async function loadProjectsList() {
-    try {
-      const res = await fetch(PROJECTS_WEBHOOK_URL);
-      const data = await res.json();
-      projectNames = (data.projects || []).map(p => p.name);
-    } catch (err) {
-      console.error('Failed to load projects list:', err);
-    }
+async function loadProjectsList() {
+  try {
+    const res = await fetch(PROJECTS_WEBHOOK_URL);
+    const data = await res.json();
+    projectNames = (data.projects || [])
+      .filter(p => p.status === 'active')
+      .map(p => p.name);
+  } catch (err) {
+    console.error('Failed to load projects list:', err);
   }
+}
 
   loadProjectsList();
 
