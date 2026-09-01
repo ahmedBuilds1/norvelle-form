@@ -390,6 +390,7 @@
     const rows = group.entries.map(e => `
       <tr>
         <td>${e.date || '-'}</td>
+        <td>${e.employee || '-'}</td>
         <td>${e.project}</td>
         <td>${e.workTime}</td>
         <td>${e.hours}</td>
@@ -407,7 +408,7 @@
         </div>
         <div class="group-detail" id="${groupId}">
           <table>
-            <tr><th>Date</th><th>Project</th><th>Time</th><th>Hours</th><th>Cost</th></tr>
+            <tr><th>Date</th><th>Employee</th><th>Project</th><th>Time</th><th>Hours</th><th>Cost</th></tr>
             ${rows}
           </table>
         </div>
